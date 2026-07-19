@@ -34,10 +34,10 @@ load_dotenv()
 HF_REPO_ID = "Duvarakesh/FashionVerse"
 MODELS_DIR = snapshot_download(repo_id=HF_REPO_ID, repo_type="model")
 
-sub_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_sub'))
-top_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_top'))
-bottom_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_bottom'))
-foot_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_shoes'))
+sub_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_sub'))
+top_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_top'))
+bottom_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_bottom'))
+foot_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_shoes'))
 
 
 sub_list = ["bottom", "foot", "top"]

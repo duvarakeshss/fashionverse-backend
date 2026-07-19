@@ -7,3 +7,5 @@ __pycache__
 # TensorFlow models
 app/ml/models/
 upload.py
+test_image.jpg
+removebg_api.py

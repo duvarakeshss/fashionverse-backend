@@ -13,3 +13,4 @@ uvicorn
 python-dotenv
 python-multipart
 sqlalchemy
+huggingface_hub
