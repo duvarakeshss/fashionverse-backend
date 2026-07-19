@@ -4,7 +4,10 @@ from app.database.connection import get_db
 from app.services.outfit_service import OutfitService
 from app.schemas.outfit import DailyOutfitResponse
 
-router = APIRouter()
+router = APIRouter(tags=["outfit"])
+
+from app.services.auth_service import get_current_user_id
+from fastapi import HTTPException
 
 @router.get(
     "/outfits/{user_id}/daily",
@@ -14,7 +17,11 @@ router = APIRouter()
 )
 async def get_daily_outfit(
     user_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access daily outfit recommendations for this user")
+        
     service = OutfitService(db)
     return await service.get_daily_outfit(user_id)

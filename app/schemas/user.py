@@ -10,28 +10,15 @@ class ProfileImageUploadResponse(BaseModel):
 
 class UserProfileUpdateRequest(BaseModel):
     """Schema for updating user profile details."""
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age of the user")
-    gender: Optional[str] = Field(None, max_length=50, description="Gender of the user")
-    height: Optional[float] = Field(None, ge=30, le=300, description="Height in cm")
-    weight: Optional[float] = Field(None, ge=10, le=500, description="Weight in kg")
-    location: Optional[str] = Field(None, max_length=100, description="City/Location of the user")
-    climate_preference: Optional[str] = Field(None, max_length=100, description="Preferred climate")
-    skin_tone: Optional[str] = Field(None, max_length=50, description="Skin tone classification")
-    body_shape: Optional[str] = Field(None, max_length=50, description="Body shape classification")
-    preferred_fit: Optional[str] = Field(None, description="Preferred clothing fit: Slim, Regular, or Oversized")
-    preferred_style: Optional[List[str]] = Field(default_factory=list, description="Styles user prefers")
-    favorite_colors: Optional[List[str]] = Field(default_factory=list, description="Colors user likes")
-    colors_to_avoid: Optional[List[str]] = Field(default_factory=list, description="Colors user dislikes")
-
-    @field_validator("preferred_fit")
-    @classmethod
-    def validate_preferred_fit(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            allowed = ["slim", "regular", "oversized"]
-            if v.strip().lower() not in allowed:
-                raise ValueError("preferred_fit must be one of: 'Slim', 'Regular', 'Oversized'")
-            return v.strip().title()
-        return v
+    shopping_for: Optional[str] = Field(None, max_length=100, description="Who the user is shopping for")
+    height: Optional[float] = Field(None, ge=30, le=300, description="Height of the user in cm")
+    body_type: Optional[str] = Field(None, max_length=100, description="Body type/shape of the user")
+    preferred_palettes: Optional[List[str]] = Field(default_factory=list, description="Preferred color palettes")
+    weekly_occasions: Optional[List[str]] = Field(default_factory=list, description="Occasions dressed for weekly")
+    climate: Optional[str] = Field(None, max_length=100, description="Climate preference of the user")
+    fashion_goals: Optional[List[str]] = Field(default_factory=list, description="Fashion goals of the user")
+    budget_range: Optional[str] = Field(None, max_length=100, description="Budget range preference")
+    preferred_brands: Optional[List[str]] = Field(default_factory=list, description="Preferred brands")
 
 class UserProfileResponse(BaseModel):
     """Response schema for user profile details."""
@@ -39,18 +26,15 @@ class UserProfileResponse(BaseModel):
     name: str
     email: str
     profile_image: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
+    shopping_for: Optional[str] = None
     height: Optional[float] = None
-    weight: Optional[float] = None
-    location: Optional[str] = None
-    climate_preference: Optional[str] = None
-    skin_tone: Optional[str] = None
-    body_shape: Optional[str] = None
-    preferred_fit: Optional[str] = None
-    preferred_style: Optional[List[str]] = None
-    favorite_colors: Optional[List[str]] = None
-    colors_to_avoid: Optional[List[str]] = None
+    body_type: Optional[str] = None
+    preferred_palettes: Optional[List[str]] = None
+    weekly_occasions: Optional[List[str]] = None
+    climate: Optional[str] = None
+    fashion_goals: Optional[List[str]] = None
+    budget_range: Optional[str] = None
+    preferred_brands: Optional[List[str]] = None
 
     class Config:
         from_attributes = True

@@ -43,18 +43,15 @@ class UserResponse(BaseModel):
     email: str
     is_verified: bool
     profile_image: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
+    shopping_for: Optional[str] = None
     height: Optional[float] = None
-    weight: Optional[float] = None
-    location: Optional[str] = None
-    climate_preference: Optional[str] = None
-    skin_tone: Optional[str] = None
-    body_shape: Optional[str] = None
-    preferred_fit: Optional[str] = None
-    preferred_style: Optional[List[str]] = None
-    favorite_colors: Optional[List[str]] = None
-    colors_to_avoid: Optional[List[str]] = None
+    body_type: Optional[str] = None
+    preferred_palettes: Optional[List[str]] = None
+    weekly_occasions: Optional[List[str]] = None
+    climate: Optional[str] = None
+    fashion_goals: Optional[List[str]] = None
+    budget_range: Optional[str] = None
+    preferred_brands: Optional[List[str]] = None
 
     class Config:
         from_attributes = True

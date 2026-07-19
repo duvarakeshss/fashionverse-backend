@@ -7,7 +7,10 @@ from app.schemas.wardrobe import WardrobeItemResponse, WardrobeCategory
 from app.config import settings
 from app.utils.exceptions import FileTooLargeError
 
-router = APIRouter()
+router = APIRouter(tags=["wardrobe"])
+
+from app.services.auth_service import get_current_user_id
+from fastapi import HTTPException
 
 @router.post(
     "/wardrobe/{user_id}/upload", 
@@ -24,9 +27,11 @@ async def upload_wardrobe_item(
     brand: str | None = Form(None),
     notes: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
-    storage: StorageBackend = Depends(get_storage_backend)
+    storage: StorageBackend = Depends(get_storage_backend),
+    current_user_id: int = Depends(get_current_user_id)
 ):
-    # TODO: replace with auth dependency
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this user's wardrobe")
 
     # Early check on Content-Length header
     content_length_header = request.headers.get("content-length")

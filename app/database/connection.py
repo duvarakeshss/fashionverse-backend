@@ -56,6 +56,8 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
+    from app.services.auth_service import hash_password
+
     # Seed default user if not exists
     async with async_session_maker() as session:
         async with session.begin():
@@ -67,7 +69,7 @@ async def init_db() -> None:
                     id=1,
                     name="Test User",
                     email="test@example.com",
-                    password_hash="pbkdf2:sha256:260000$dummyhash",
+                    password_hash=hash_password("password"),
                     is_verified=True
                 )
                 session.add(default_user)

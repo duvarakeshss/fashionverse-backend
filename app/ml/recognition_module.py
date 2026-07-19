@@ -29,15 +29,48 @@ from huggingface_hub import snapshot_download
 # Load HF_TOKEN (and any other vars) from .env into the environment
 load_dotenv()
 
-# Download the models folder from the Hugging Face Hub repo instead of loading locally.
-# snapshot_download caches the files, so repeated runs won't re-download unless updated.
-HF_REPO_ID = "Duvarakesh/FashionVerse"
-MODELS_DIR = snapshot_download(repo_id=HF_REPO_ID, repo_type="model")
+# Determine the directory where models are located.
+# We first check if the models exist in the local workspace directory "app/ml/models".
+# If they do, we use them directly to avoid any network requests or Hugging Face Hub cache checks.
+workspace_models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+if os.path.exists(workspace_models_dir) and os.path.exists(os.path.join(workspace_models_dir, "model_sub")):
+    MODELS_DIR = workspace_models_dir
+else:
+    # Fallback to downloading/checking Hugging Face Hub
+    HF_REPO_ID = "Duvarakesh/FashionVerse"
+    try:
+        MODELS_DIR = snapshot_download(repo_id=HF_REPO_ID, repo_type="model", local_files_only=True)
+    except Exception:
+        MODELS_DIR = snapshot_download(repo_id=HF_REPO_ID, repo_type="model", local_files_only=False)
 
-sub_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_sub'))
-top_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_top'))
-bottom_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_bottom'))
-foot_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_shoes'))
+_sub_model = None
+_top_model = None
+_bottom_model = None
+_foot_model = None
+
+def get_sub_model():
+    global _sub_model
+    if _sub_model is None:
+        _sub_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_sub'))
+    return _sub_model
+
+def get_top_model():
+    global _top_model
+    if _top_model is None:
+        _top_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_top'))
+    return _top_model
+
+def get_bottom_model():
+    global _bottom_model
+    if _bottom_model is None:
+        _bottom_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_bottom'))
+    return _bottom_model
+
+def get_foot_model():
+    global _foot_model
+    if _foot_model is None:
+        _foot_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'model_shoes'))
+    return _foot_model
 
 
 sub_list = ["bottom", "foot", "top"]
@@ -146,14 +179,14 @@ def single_classification(single_path):
 
     train_images[0] = img
 
-    result2 = sub_list[np.argmax(sub_model.predict(train_images))]
+    result2 = sub_list[np.argmax(get_sub_model().predict(train_images))]
 
     if result2 == "top":
-        res = single_helper(train_images, top_model, top_list)
+        res = single_helper(train_images, get_top_model(), top_list)
     elif result2 == "bottom":
-        res = single_helper(train_images, bottom_model, bottom_list)
+        res = single_helper(train_images, get_bottom_model(), bottom_list)
     elif result2 == "foot":
-        res = single_helper(train_images, foot_model, foot_list)
+        res = single_helper(train_images, get_foot_model(), foot_list)
     else:
         raise ValueError(f"Unexpected sub-model result: {result2}")
 

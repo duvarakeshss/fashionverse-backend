@@ -27,6 +27,29 @@ class Settings:
     ALLOWED_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".webp"}
     ALLOWED_MIME_TYPES: set[str] = {"image/jpeg", "image/png", "image/webp"}
 
+    # Azure Storage Settings
+    AZURE_STORAGE_CONNECTION_STRING: str | None = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    AZURE_BLOB_CONTAINER_NAME: str | None = os.getenv("AZURE_BLOB_CONTAINER_NAME")
+
+    # JWT Settings
+    JWT_SECRET_KEY: str = os.getenv("JWT_ACCESS_SECRET")
+    JWT_REFRESH_SECRET_KEY: str = os.getenv("JWT_REFRESH_SECRET")
+    JWT_EXPIRATION: str = os.getenv("JWT_ACCESS_EXPIRATION")
+    JWT_REFRESH_EXPIRATION: str  = os.getenv("JWT_REFRESH_EXPIRATION")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM")
+
+    # Enforce that JWT settings are defined in env
+    if not JWT_SECRET_KEY:
+        raise ValueError("JWT_ACCESS_SECRET environment variable is missing/empty")
+    if not JWT_REFRESH_SECRET_KEY:
+        raise ValueError("JWT_REFRESH_SECRET environment variable is missing/empty")
+    if not JWT_EXPIRATION:
+        raise ValueError("JWT_ACCESS_EXPIRATION environment variable is missing/empty")
+    if not JWT_REFRESH_EXPIRATION:
+        raise ValueError("JWT_REFRESH_EXPIRATION environment variable is missing/empty")
+    if not JWT_ALGORITHM:
+        raise ValueError("JWT_ALGORITHM environment variable is missing/empty")
+
     # SMTP Settings
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
@@ -36,10 +59,13 @@ class Settings:
 
 settings = Settings()
 
-# Ensure all uploads directories exist at import time
+# Ensure necessary uploads directories exist at import time
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-(settings.UPLOAD_DIR / "profiles").mkdir(parents=True, exist_ok=True)
-(settings.UPLOAD_DIR / "wardrobe").mkdir(parents=True, exist_ok=True)
-(settings.UPLOAD_DIR / "processed").mkdir(parents=True, exist_ok=True)
-(settings.UPLOAD_DIR / "thumbnails").mkdir(parents=True, exist_ok=True)
-(settings.UPLOAD_DIR / "temp").mkdir(parents=True, exist_ok=True)
+(settings.UPLOAD_DIR / "temp").mkdir(parents=True, exist_ok=True) # Always needed for local ML image processing
+
+# Only create fallback storage folders if we are running in local fallback mode (no Azure)
+if not settings.AZURE_STORAGE_CONNECTION_STRING:
+    (settings.UPLOAD_DIR / "profiles").mkdir(parents=True, exist_ok=True)
+    (settings.UPLOAD_DIR / "wardrobe").mkdir(parents=True, exist_ok=True)
+    (settings.UPLOAD_DIR / "processed").mkdir(parents=True, exist_ok=True)
+    (settings.UPLOAD_DIR / "thumbnails").mkdir(parents=True, exist_ok=True)

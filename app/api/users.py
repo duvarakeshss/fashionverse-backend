@@ -13,7 +13,10 @@ from app.config import settings
 from app.models.user import User
 from app.utils.exceptions import FileTooLargeError, UserNotFoundError
 
-router = APIRouter()
+router = APIRouter(tags=["user"])
+
+from app.services.auth_service import get_current_user_id
+from fastapi import HTTPException
 
 @router.post(
     "/users/{user_id}/profile-image", 
@@ -27,9 +30,11 @@ async def upload_profile_image(
     request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    storage: StorageBackend = Depends(get_storage_backend)
+    storage: StorageBackend = Depends(get_storage_backend),
+    current_user_id: int = Depends(get_current_user_id)
 ):
-    # TODO: replace with auth dependency
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this user's profile")
     
     # Early check on Content-Length header
     content_length_header = request.headers.get("content-length")
@@ -54,7 +59,7 @@ async def upload_profile_image(
     
     return result
 
-@router.put(
+@router.post(
     "/users/{user_id}/profile",
     response_model=UserProfileResponse,
     status_code=200,
@@ -64,8 +69,12 @@ async def upload_profile_image(
 async def update_user_profile(
     user_id: int,
     req: UserProfileUpdateRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this user's profile")
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -88,8 +97,12 @@ async def update_user_profile(
 )
 async def get_user_profile(
     user_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this user's profile")
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

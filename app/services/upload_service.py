@@ -98,10 +98,11 @@ class UploadService:
         await self.db.commit()
 
         # Return response format matching schema
+        image_url = self.storage.get_url(saved_relative_path)
         return {
             "success": True,
             "message": "Profile image uploaded successfully",
-            "image_url": f"/uploads/{saved_relative_path}",
+            "image_url": image_url,
             "filename": filename
         }
 
@@ -136,13 +137,41 @@ class UploadService:
         # Save main image to storage
         saved_relative_path = await self.storage.save(file_bytes, destination_path)
 
-        # Generate thumbnail path and execute generation
-        abs_main_path = str((settings.UPLOAD_DIR / saved_relative_path).resolve())
-        thumbnail_filename = f"{item_uuid}{true_ext}"
-        thumbnail_dest_path = str((settings.UPLOAD_DIR / "thumbnails" / str(user_id) / thumbnail_filename).resolve())
+        # Generate thumbnail using temp files to ensure storage backend independence
+        import anyio
         
-        # Generate thumbnail (Pillow resize)
-        await generate_thumbnail(abs_main_path, thumbnail_dest_path)
+        temp_dir = settings.UPLOAD_DIR / "temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        temp_main_path = temp_dir / f"temp_{item_uuid}{true_ext}"
+        temp_thumb_path = temp_dir / f"thumb_{item_uuid}{true_ext}"
+        
+        def write_temp():
+            with open(temp_main_path, "wb") as f:
+                f.write(file_bytes)
+        await anyio.to_thread.run_sync(write_temp)
+        
+        try:
+            # Generate thumbnail
+            await generate_thumbnail(str(temp_main_path), str(temp_thumb_path))
+            
+            # Read thumbnail bytes
+            def read_thumb():
+                with open(temp_thumb_path, "rb") as f:
+                    return f.read()
+            thumbnail_bytes = await anyio.to_thread.run_sync(read_thumb)
+            
+            # Save thumbnail to storage backend
+            thumbnail_relative_path = f"thumbnails/{user_id}/{item_uuid}{true_ext}"
+            await self.storage.save(thumbnail_bytes, thumbnail_relative_path)
+        finally:
+            # Cleanup temp files
+            def cleanup():
+                if temp_main_path.exists():
+                    temp_main_path.unlink()
+                if temp_thumb_path.exists():
+                    temp_thumb_path.unlink()
+            await anyio.to_thread.run_sync(cleanup)
 
         # Insert WardrobeItem into database
         item = WardrobeItem(

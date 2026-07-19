@@ -9,17 +9,17 @@ from app.models.user import User
 from app.schemas.auth import UserRegisterRequest, UserVerifyRequest, UserLoginRequest, TokenResponse, UserResponse
 from app.services.email_service import EmailService
 from app.utils.exceptions import UploadError
+from app.config import settings
 
 # Password hashing helpers using built-in hashlib (PBKDF2-HMAC-SHA256)
+import jwt
+
 def hash_password(password: str) -> str:
     salt = os.urandom(16).hex()
     key = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
     return f"pbkdf2:sha256:100000${salt}${key.hex()}"
 
 def verify_password(password: str, hashed: str) -> bool:
-    if hashed == "pbkdf2:sha256:260000$dummyhash":
-        # Support default test user login
-        return password == "password"
     try:
         parts = hashed.split('$')
         if len(parts) != 3 or parts[0] != "pbkdf2:sha256:100000":
@@ -29,6 +29,29 @@ def verify_password(password: str, hashed: str) -> bool:
         return key.hex() == key_hex
     except Exception:
         return False
+
+def parse_expiration_time(expiration_str: str) -> timedelta:
+    try:
+        val = int(expiration_str[:-1])
+        unit = expiration_str[-1].lower()
+        if unit == 'h':
+            return timedelta(hours=val)
+        elif unit == 'd':
+            return timedelta(days=val)
+        elif unit == 'm':
+            return timedelta(minutes=val)
+    except Exception:
+        pass
+    return timedelta(hours=24)
+
+def create_access_token(user_id: int) -> str:
+    expire = datetime.utcnow() + parse_expiration_time(settings.JWT_EXPIRATION)
+    payload = {
+        "sub": str(user_id),
+        "exp": expire
+    }
+    encoded_jwt = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return encoded_jwt
 
 
 class AuthService:
@@ -113,10 +136,36 @@ class AuthService:
             raise UploadError("Email not verified. A verification code has been sent to your email.", status_code=403)
 
         # Return token response
-        # Since this is a simple backend we return a simulated JWT token string
-        simulated_token = f"simulated_token_for_user_{user.id}"
+        token = create_access_token(user.id)
         return TokenResponse(
-            access_token=simulated_token,
+            access_token=token,
             token_type="bearer",
             user=UserResponse.model_validate(user)
+        )
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status
+
+oauth2_scheme = HTTPBearer()
+
+async def get_current_user_id(
+    token: HTTPAuthorizationCredentials = Depends(oauth2_scheme)
+) -> int:
+    try:
+        payload = jwt.decode(
+            token.credentials, 
+            settings.JWT_SECRET_KEY, 
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject"
+            )
+        return int(user_id)
+    except jwt.exceptions.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
         )
