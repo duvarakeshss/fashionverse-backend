@@ -1,3 +1,7 @@
+"""
+Authentication API Router.
+Provides endpoints for registering, verifying, and logging in users.
+"""
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 

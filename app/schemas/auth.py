@@ -1,3 +1,7 @@
+"""
+Authentication Schemas.
+Pydantic models for register, login, verification, and token authentication responses.
+"""
 from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 import re
@@ -52,6 +56,19 @@ class UserResponse(BaseModel):
     fashion_goals: Optional[List[str]] = None
     budget_range: Optional[str] = None
     preferred_brands: Optional[List[str]] = None
+
+    @field_validator("profile_image", mode="before")
+    @classmethod
+    def resolve_public_url(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        if v.startswith("http://") or v.startswith("https://"):
+            return v
+        from app.services.storage_service import get_storage_backend
+        try:
+            return get_storage_backend().get_url(v)
+        except Exception:
+            return v
 
     class Config:
         from_attributes = True

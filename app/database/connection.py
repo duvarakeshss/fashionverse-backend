@@ -1,6 +1,18 @@
+"""
+Database Connection and Initialization Service.
+Manages the SQLAlchemy async engine and sessionmaker, initializes schemas, and handles database seeding.
+"""
 from collections.abc import AsyncGenerator
+import asyncpg
+from sqlalchemy import select, text
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
 from app.config import settings
+from app.models.base import Base
+from app.models.user import User
+from app.models.wardrobe import WardrobeItem  # noqa: F401 — ensure table is registered
+from app.services.auth_service import hash_password
 
 # Create async engine and sessionmaker
 engine = create_async_engine(settings.DATABASE_URL, echo=False)
@@ -20,9 +32,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Initialize the database tables and seed test data if necessary."""
-    import asyncpg
-    from sqlalchemy.engine.url import make_url
-    
     url = make_url(settings.DATABASE_URL)
     target_db = url.database
     
@@ -46,17 +55,10 @@ async def init_db() -> None:
     except Exception:
         pass
 
-    from app.models.base import Base
-    from app.models.user import User
-    from app.models.wardrobe import WardrobeItem  # noqa: F401 — ensure table is registered
-    from sqlalchemy import select
-
-    # Drop and recreate tables for clean state
+    # Recreate tables in a clean transaction block
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-
-    from app.services.auth_service import hash_password
 
     # Seed default user if not exists
     async with async_session_maker() as session:
@@ -75,5 +77,5 @@ async def init_db() -> None:
                 session.add(default_user)
                 await session.flush()
                 # Sync sequence in postgres so auto-increment works correctly
-                from sqlalchemy import text
                 await session.execute(text("SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE(MAX(id), 1)) FROM users"))
+

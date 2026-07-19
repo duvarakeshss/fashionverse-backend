@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends
+"""
+Outfits Recommendation API Router.
+Provides endpoints for retrieving daily outfit recommendations.
+"""
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.connection import get_db
 from app.services.outfit_service import OutfitService
 from app.schemas.outfit import DailyOutfitResponse
+from app.services.auth_service import get_current_user_id
 
 router = APIRouter(tags=["outfit"])
-
-from app.services.auth_service import get_current_user_id
-from fastapi import HTTPException
 
 @router.get(
     "/outfits/{user_id}/daily",

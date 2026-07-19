@@ -1,7 +1,14 @@
+"""
+Authentication and Authorization Service.
+Handles user registration, verification, JWT generation, password hashing, and token dependency checks.
+"""
 import hashlib
 import os
 import random
 from datetime import datetime, timedelta
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +19,6 @@ from app.utils.exceptions import UploadError
 from app.config import settings
 
 # Password hashing helpers using built-in hashlib (PBKDF2-HMAC-SHA256)
-import jwt
 
 def hash_password(password: str) -> str:
     salt = os.urandom(16).hex()
@@ -142,9 +148,6 @@ class AuthService:
             token_type="bearer",
             user=UserResponse.model_validate(user)
         )
-
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import Depends, HTTPException, status
 
 oauth2_scheme = HTTPBearer()
 

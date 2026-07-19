@@ -1,3 +1,7 @@
+"""
+Wardrobe Schemas.
+Pydantic schemas representing wardrobe category annotations, item responses, search, and AI queries.
+"""
 from datetime import datetime
 from enum import Enum
 from typing import Annotated
@@ -21,7 +25,46 @@ class WardrobeItemResponse(BaseModel):
     image_path: str
     brand: str | None = None
     notes: str | None = None
+    type: str | None = None
+    gender: str | None = None
+    color: str | None = None
+    season: str | None = None
+    usage: str | None = None
+    description: str | None = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class WardrobeQueryRequest(BaseModel):
+    """Request body for the AI outfit query endpoint."""
+    query: str
+    limit: int = 5
+
+
+class WardrobeQueryItemResult(BaseModel):
+    """A single matched wardrobe item returned in an AI query response, with a resolved public image URL."""
+    id: int
+    user_id: int
+    category: str
+    image_url: str          # Public Azure / local URL for the image
+    brand: str | None = None
+    notes: str | None = None
+    type: str | None = None
+    gender: str | None = None
+    color: str | None = None
+    season: str | None = None
+    usage: str | None = None
+    description: str | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WardrobeQueryResponse(BaseModel):
+    """Response body for the AI outfit query endpoint."""
+    query: str
+    recommendation: str
+    matched_items: list[WardrobeQueryItemResult]

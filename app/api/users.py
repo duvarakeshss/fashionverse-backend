@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Request
+"""
+User Profile API Router.
+Provides endpoints for retrieving and updating user profile details and profile images.
+"""
+from fastapi import APIRouter, Depends, File, UploadFile, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database.connection import get_db
@@ -12,11 +16,9 @@ from app.schemas.user import (
 from app.config import settings
 from app.models.user import User
 from app.utils.exceptions import FileTooLargeError, UserNotFoundError
+from app.services.auth_service import get_current_user_id
 
 router = APIRouter(tags=["user"])
-
-from app.services.auth_service import get_current_user_id
-from fastapi import HTTPException
 
 @router.post(
     "/users/{user_id}/profile-image", 

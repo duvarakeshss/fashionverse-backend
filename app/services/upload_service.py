@@ -1,3 +1,7 @@
+"""
+Upload and Image Processing Coordination Service.
+Coordinates image uploads, thumbnails generation, ML classifications, and DB persistence.
+"""
 import os
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -109,7 +113,6 @@ class UploadService:
     async def upload_wardrobe_item(
         self,
         user_id: int,
-        category: str,
         file_bytes: bytes,
         original_filename: str,
         content_length: int | None,
@@ -117,42 +120,55 @@ class UploadService:
         notes: str | None = None
     ) -> WardrobeItem:
         """
-        Processes, stores, and classifies a wardrobe item.
-        Also generates a thumbnail for the item.
+        Processes, stores, and automatically classifies a wardrobe item using ML models.
+        Generates a semantic description and vector embedding, then uploads to storage.
         """
         # Verify user
         await self._verify_user_exists(user_id)
 
-        # Normalize category
-        normalized_category = category.lower().strip()
-
         # Validate file
         true_ext = await self._validate_uploaded_file(file_bytes, original_filename, content_length)
 
-        # Generate unique filename and path
+        # Generate unique UUID for temp files and final path
         item_uuid = uuid.uuid4().hex
-        filename = f"{item_uuid}{true_ext}"
-        destination_path = f"wardrobe/{user_id}/{normalized_category}/{filename}"
-
-        # Save main image to storage
-        saved_relative_path = await self.storage.save(file_bytes, destination_path)
-
-        # Generate thumbnail using temp files to ensure storage backend independence
-        import anyio
         
+        # Save file to local temp directory for ML classification
         temp_dir = settings.UPLOAD_DIR / "temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
         
         temp_main_path = temp_dir / f"temp_{item_uuid}{true_ext}"
         temp_thumb_path = temp_dir / f"thumb_{item_uuid}{true_ext}"
         
+        import anyio
         def write_temp():
             with open(temp_main_path, "wb") as f:
                 f.write(file_bytes)
         await anyio.to_thread.run_sync(write_temp)
-        
+
         try:
-            # Generate thumbnail
+            # 1. Run ML classification
+            from app.ml.recognition_module import single_classification
+            
+            def run_ml():
+                return single_classification(str(temp_main_path))
+            predicted_category_raw, res_str, res = await anyio.to_thread.run_sync(run_ml)
+            
+            # Map "foot" category to standard "shoes"
+            predicted_category = "shoes" if predicted_category_raw.lower() == "foot" else predicted_category_raw.lower()
+            
+            # Unpack attributes from classification result: [type, gender, color, season, usage]
+            item_type, gender, color, season, usage = res[0], res[1], res[2], res[3], res[4]
+
+            # 2. Combine attributes into semantic description
+            description = f"A {color.lower()} {item_type.lower()} for {gender.lower()}, suitable for {season.lower()} in {usage.lower()} occasions."
+            if brand:
+                description += f" Brand: {brand}."
+
+            # 3. Generate dense vector embedding of the description
+            from app.services.embedding_service import EmbeddingService
+            embedding = EmbeddingService.get_embedding(description)
+
+            # 4. Generate thumbnail
             await generate_thumbnail(str(temp_main_path), str(temp_thumb_path))
             
             # Read thumbnail bytes
@@ -160,12 +176,9 @@ class UploadService:
                 with open(temp_thumb_path, "rb") as f:
                     return f.read()
             thumbnail_bytes = await anyio.to_thread.run_sync(read_thumb)
-            
-            # Save thumbnail to storage backend
-            thumbnail_relative_path = f"thumbnails/{user_id}/{item_uuid}{true_ext}"
-            await self.storage.save(thumbnail_bytes, thumbnail_relative_path)
+
         finally:
-            # Cleanup temp files
+            # Cleanup local temp files
             def cleanup():
                 if temp_main_path.exists():
                     temp_main_path.unlink()
@@ -173,13 +186,28 @@ class UploadService:
                     temp_thumb_path.unlink()
             await anyio.to_thread.run_sync(cleanup)
 
-        # Insert WardrobeItem into database
+        # 5. Save main image and thumbnail to storage backend
+        filename = f"{item_uuid}{true_ext}"
+        destination_path = f"wardrobe/{user_id}/{predicted_category}/{filename}"
+        saved_relative_path = await self.storage.save(file_bytes, destination_path)
+        
+        thumbnail_relative_path = f"thumbnails/{user_id}/{item_uuid}{true_ext}"
+        await self.storage.save(thumbnail_bytes, thumbnail_relative_path)
+
+        # 6. Persist WardrobeItem in database
         item = WardrobeItem(
             user_id=user_id,
-            category=normalized_category,
+            category=predicted_category,
             image_path=saved_relative_path,
             brand=brand,
-            notes=notes
+            notes=notes,
+            type=item_type,
+            gender=gender,
+            color=color,
+            season=season,
+            usage=usage,
+            description=description,
+            embedding=embedding
         )
         self.db.add(item)
         await self.db.commit()

@@ -1,3 +1,7 @@
+"""
+Application Settings and Configuration.
+Loads environment variables and sets up application-wide constants.
+"""
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -7,10 +11,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 class Settings:
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", 
-        "postgresql+asyncpg://postgres:1234@localhost:5433/fashionVerse"
-    )
+    DATABASE_URL: str | None = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is missing/empty")
+
     # Ensure DATABASE_URL starts with postgresql+asyncpg for async SQLAlchemy
     if DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
@@ -49,6 +53,9 @@ class Settings:
         raise ValueError("JWT_REFRESH_EXPIRATION environment variable is missing/empty")
     if not JWT_ALGORITHM:
         raise ValueError("JWT_ALGORITHM environment variable is missing/empty")
+
+    # OpenRouter LLM API
+    OPENROUTER_API_KEY: str | None = os.getenv("OPENROUTER_API_KEY")
 
     # SMTP Settings
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
