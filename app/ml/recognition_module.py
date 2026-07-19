@@ -23,12 +23,21 @@ from webcolors import hex_to_rgb
 
 import tf_keras
 from tf_keras.preprocessing import image as keras_image
+from dotenv import load_dotenv
+from huggingface_hub import snapshot_download
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sub_model = tf_keras.models.load_model(os.path.join(BASE_DIR, 'models', 'model_sub'))
-top_model = tf_keras.models.load_model(os.path.join(BASE_DIR, 'models', 'model_top'))
-bottom_model = tf_keras.models.load_model(os.path.join(BASE_DIR, 'models', 'model_bottom'))
-foot_model = tf_keras.models.load_model(os.path.join(BASE_DIR, 'models', 'model_shoes'))
+# Load HF_TOKEN (and any other vars) from .env into the environment
+load_dotenv()
+
+# Download the models folder from the Hugging Face Hub repo instead of loading locally.
+# snapshot_download caches the files, so repeated runs won't re-download unless updated.
+HF_REPO_ID = "Duvarakesh/FashionVerse"
+MODELS_DIR = snapshot_download(repo_id=HF_REPO_ID, repo_type="model")
+
+sub_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_sub'))
+top_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_top'))
+bottom_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_bottom'))
+foot_model = tf_keras.models.load_model(os.path.join(MODELS_DIR, 'models', 'model_shoes'))
 
 
 sub_list = ["bottom", "foot", "top"]
