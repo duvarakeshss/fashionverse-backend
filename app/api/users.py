@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends, File, UploadFile, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database.connection import get_db
 from app.services.storage_service import StorageBackend, get_storage_backend
 from app.services.upload_service import UploadService
-from app.schemas.user import ProfileImageUploadResponse
+from app.schemas.user import (
+    ProfileImageUploadResponse,
+    UserProfileUpdateRequest,
+    UserProfileResponse
+)
 from app.config import settings
-from app.utils.exceptions import FileTooLargeError
+from app.models.user import User
+from app.utils.exceptions import FileTooLargeError, UserNotFoundError
 
 router = APIRouter()
 
@@ -47,3 +53,45 @@ async def upload_profile_image(
     )
     
     return result
+
+@router.put(
+    "/users/{user_id}/profile",
+    response_model=UserProfileResponse,
+    status_code=200,
+    summary="Update User Profile",
+    description="Updates the profile information of the user."
+)
+async def update_user_profile(
+    user_id: int,
+    req: UserProfileUpdateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise UserNotFoundError()
+
+    # Update fields that are provided in the request
+    for field, value in req.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+@router.get(
+    "/users/{user_id}/profile",
+    response_model=UserProfileResponse,
+    status_code=200,
+    summary="Get User Profile",
+    description="Retrieves the profile information of the user."
+)
+async def get_user_profile(
+    user_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise UserNotFoundError()
+    return user

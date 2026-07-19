@@ -1,3 +1,4 @@
+from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 import re
 
@@ -41,6 +42,19 @@ class UserResponse(BaseModel):
     name: str
     email: str
     is_verified: bool
+    profile_image: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    location: Optional[str] = None
+    climate_preference: Optional[str] = None
+    skin_tone: Optional[str] = None
+    body_shape: Optional[str] = None
+    preferred_fit: Optional[str] = None
+    preferred_style: Optional[List[str]] = None
+    favorite_colors: Optional[List[str]] = None
+    colors_to_avoid: Optional[List[str]] = None
 
     class Config:
         from_attributes = True
