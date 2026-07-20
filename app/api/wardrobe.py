@@ -66,8 +66,11 @@ async def upload_wardrobe_item(
         brand=brand,
         notes=notes
     )
-    
-    return item
+
+    # Build response with resolved public URL
+    response = WardrobeItemResponse.model_validate(item)
+    response.image_url = storage.get_url(item.image_path)
+    return response
 
 @router.get(
     "/wardrobe/{user_id}/search",
@@ -80,6 +83,7 @@ async def search_wardrobe(
     q: str,
     limit: int = 5,
     db: AsyncSession = Depends(get_db),
+    storage: StorageBackend = Depends(get_storage_backend),
     current_user_id: int = Depends(get_current_user_id)
 ):
     if user_id != current_user_id:
@@ -91,7 +95,15 @@ async def search_wardrobe(
     result = await db.execute(stmt)
     all_items = result.scalars().all()
 
-    return _cosine_similarity_search(all_items, query_embedding, limit)
+    top_items = _cosine_similarity_search(all_items, query_embedding, limit)
+
+    # Build responses with resolved public URLs
+    responses = []
+    for item in top_items:
+        r = WardrobeItemResponse.model_validate(item)
+        r.image_url = storage.get_url(item.image_path)
+        responses.append(r)
+    return responses
 
 
 def _cosine_similarity_search(

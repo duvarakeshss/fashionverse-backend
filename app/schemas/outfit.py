@@ -1,12 +1,17 @@
+"""
+Outfit Schemas.
+Pydantic schemas for daily outfit recommendations returned by the outfit service.
+"""
 from datetime import datetime
 from pydantic import BaseModel
 
 
 class OutfitItemDetail(BaseModel):
-    """Schema for a single wardrobe item within an outfit."""
+    """Schema for a single wardrobe item within an outfit. `image_url` is the fully resolved public URL."""
     id: int
     category: str
     image_path: str
+    image_url: str = ""  # Resolved public URL — populated by the API layer
     brand: str | None = None
     notes: str | None = None
 

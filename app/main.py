@@ -95,15 +95,21 @@ async def serve_uploaded_file(
     file_path: str,
     storage: StorageBackend = Depends(get_storage_backend)
 ):
-    # If using a cloud storage backend (like Azure), redirect to the direct URL
-    if not isinstance(storage, LocalStorageBackend):
-        return RedirectResponse(storage.get_url(file_path))
-    
-    # Otherwise serve from local uploads directory
-    local_path = settings.UPLOAD_DIR / file_path
-    if not local_path.exists() or not local_path.is_file():
+    import mimetypes
+    from fastapi.responses import Response
+
+    # Determine correct media type
+    media_type, _ = mimetypes.guess_type(file_path)
+    if not media_type:
+        media_type = "image/jpeg"
+
+    # Read from storage (local file or Azure blob) and return Response
+    try:
+        file_bytes = await storage.read(file_path)
+        return Response(content=file_bytes, media_type=media_type)
+    except Exception:
         return JSONResponse(status_code=404, content={"detail": "File not found"})
-    return FileResponse(local_path)
+
 
 
 # -----------------------------------------------------------------------------

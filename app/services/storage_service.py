@@ -32,6 +32,11 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
+    async def read(self, path: str) -> bytes:
+        """Reads the file bytes from the storage backend."""
+        pass
+
+    @abstractmethod
     def get_url(self, path: str) -> str:
         """Returns the public URL (relative or absolute) to access the file."""
         pass
@@ -100,6 +105,16 @@ class LocalStorageBackend(StorageBackend):
             return full_path.exists() and full_path.is_file()
         return await anyio.to_thread.run_sync(check_exists)
 
+    async def read(self, path: str) -> bytes:
+        full_path = self._get_full_path(path)
+        import anyio
+        def read_file():
+            if not full_path.exists() or not full_path.is_file():
+                raise FileNotFoundError()
+            with open(full_path, "rb") as f:
+                return f.read()
+        return await anyio.to_thread.run_sync(read_file)
+
     def get_url(self, path: str) -> str:
         norm_path = os.path.normpath(path).replace("\\", "/").lstrip("/")
         return f"/uploads/{norm_path}"
@@ -151,19 +166,20 @@ class AzureBlobStorageBackend(StorageBackend):
         except ResourceNotFoundError:
             return False
 
-    def get_url(self, path: str) -> str:
-        account_name = None
-        for pair in self.connection_string.split(";"):
-            if "=" in pair:
-                key, val = pair.split("=", 1)
-                if key.strip().lower() == "accountname":
-                    account_name = val.strip()
-                    break
-        if not account_name:
-            account_name = "azurestd01"
-            
+    async def read(self, path: str) -> bytes:
         norm_path = path.replace("\\", "/").lstrip("/")
-        return f"https://{account_name}.blob.core.windows.net/{self.container_name}/{norm_path}"
+        container_client = self.blob_service_client.get_container_client(self.container_name)
+        blob_client = container_client.get_blob_client(norm_path)
+        from azure.core.exceptions import ResourceNotFoundError
+        try:
+            stream = await blob_client.download_blob()
+            return await stream.readall()
+        except ResourceNotFoundError:
+            raise FileNotFoundError()
+
+    def get_url(self, path: str) -> str:
+        norm_path = path.replace("\\", "/").lstrip("/")
+        return f"/uploads/{norm_path}"
 
     async def close(self) -> None:
         await self.blob_service_client.close()

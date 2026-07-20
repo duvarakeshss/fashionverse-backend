@@ -55,9 +55,8 @@ async def init_db() -> None:
     except Exception:
         pass
 
-    # Recreate tables in a clean transaction block
+    # Create tables if they do not exist
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     # Seed default user if not exists

@@ -18,11 +18,12 @@ def normalize_category(v: str) -> str:
 WardrobeCategory = Annotated[str, BeforeValidator(normalize_category)]
 
 class WardrobeItemResponse(BaseModel):
-    """Response schema for serialized wardrobe items."""
+    """Response schema for serialized wardrobe items. `image_url` is the fully resolved public URL."""
     id: int
     user_id: int
     category: str
     image_path: str
+    image_url: str = ""   # Resolved public URL — populated by the API layer
     brand: str | None = None
     notes: str | None = None
     type: str | None = None
